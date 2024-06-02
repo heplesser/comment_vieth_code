@@ -10,6 +10,7 @@ import time
 from globparams import *
 import random
 import pandas as pd
+from pathlib import Path
 
 
 #############################################################
@@ -90,6 +91,8 @@ synapse stdp_nn_symm:
 print(module_name,
     neuron_model_name,
     synapse_model_name)
+
+nest.ResetKernel()  # must come before Install for NEST 3.7 and later
 nest.Install(module_name)
 
 
@@ -103,7 +106,6 @@ simulation_time = DURATION  # ms
 dt = 1.0  # ms
 
 # Set up the NEST simulation
-nest.ResetKernel()
 nest.SetKernelStatus(
     {"resolution": dt, "print_time": False, "local_num_threads": os.cpu_count(),
          "overwrite_files": True, "rng_seed": int(1 + random.random() * (2**32-2))}
@@ -120,6 +122,10 @@ synapse_params = {
     "stdp_speed": STDP_SPEED,
 }
 
+if WGTS:
+    wr = nest.Create('weight_recorder')
+    nest.SetDefaults(synapse_model_name, {'weight_recorder': wr[0]})
+    
 if CONN:
     nest.Connect(neurons, neurons, "all_to_all", synapse_params)
 
@@ -147,11 +153,14 @@ with nest.RunManager():
 if WGTS:
     w_post = conns.w
 
-base_out = f"nest_native_LIF_{num_neurons}_Conn_{CONN}_STDP_{STDP_SPEED>0}"
+base_out = Path("tmpdata") / f"nest_native_LIF_{num_neurons}_Conn_{CONN}_STDP_{STDP_SPEED>0}"
 pd.DataFrame.from_dict(sr.events).to_csv(f"{base_out}_spikes.dat", sep="\t")
 
 if WGTS:
-    pd.DataFrame.from_dict({'w_ini': w_ini, 'w_post': w_post}).to_csv(f"{base_out}_weights.dat", sep="\t")
+    pd.DataFrame.from_dict({'source': conns.source, 'target': conns.target,
+                            'w_ini': w_ini, 'w_post': w_post}).to_csv(f"{base_out}_weights.dat", sep="\t")
+    pd.DataFrame.from_dict(wr.events).to_csv(f"{base_out}_wr.dat", sep="\t")
+
 if PLOT:
     spike_rec = nest.GetStatus(sr, keys="events")[0]
     print(f"Total spikes: {len(spike_rec['times'])}")

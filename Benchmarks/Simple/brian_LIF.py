@@ -7,6 +7,7 @@ import time
 from globparams import *
 import pandas as pd
 import numpy as np
+from pathlib import Path
 
 defaultclock.dt = 1*ms
 prefs.core.default_float_dtype = float32
@@ -57,7 +58,7 @@ start = time.time()
 run(DURATION*ms, report='text')
 print("simulation time: ", time.time()-start)
 
-base_out = f"brian_LIF_Delta_{DELTA}_{METHOD}_{SIZE}_Conn_{CONN}_STDP_{STDP_SPEED>0}"
+base_out = Path("tmpdata") / f"brian_LIF_Delta_{DELTA}_{METHOD}_{SIZE}_Conn_{CONN}_STDP_{STDP_SPEED>0}"
 
 pd.DataFrame.from_dict({'senders': np.array(M.i), 'times': M.t/ms}).to_csv(
                               f"{base_out}_spikes.dat", sep="\t")
